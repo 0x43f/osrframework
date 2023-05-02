@@ -1,11 +1,8 @@
-# !/usr/bin/python
-# -*- coding: cp1252 -*-
-#
 ################################################################################
 #
-#    Copyright 2014-2017 Félix Brezo and Yaiza Rubio (i3visio, contacto@i3visio.com)
+#    Copyright 2015-2020 Félix Brezo and Yaiza Rubio
 #
-#    This file is part of OSRFramework. You can redistribute it and/or modify
+#    This program is part of OSRFramework. You can redistribute it and/or modify
 #    it under the terms of the GNU Affero General Public License as published by
 #    the Free Software Foundation, either version 3 of the License, or
 #    (at your option) any later version.
@@ -20,79 +17,71 @@
 #
 ################################################################################
 
-
-import colorama
-colorama.init(autoreset=True)
 import datetime
 import hashlib
 import json
-import logging
-import networkx as nx
 import os
 import time
 import urllib
 import webbrowser as wb
 
-from osrframework.transforms.lib.maltego import MaltegoEntity, MaltegoTransform
+import colorama
+colorama.init(autoreset=True)
+import networkx as nx
 
 
 LICENSE_URL = "https://www.gnu.org/licenses/agpl-3.0.txt"
 
 
-def exportUsufy(data, ext, fileH):
+def export_usufy(data, ext, fileH):
     """
     Method that exports the different structures onto different formats.
 
     Args:
-    -----
         data: Data to export.
         ext: One of the following: csv, excel, json, ods.
         fileH: Fileheader for the output files.
 
     Returns:
-    --------
         Performs the export as requested by parameter.
     """
     if ext == "csv":
-        usufyToCsvExport(data, fileH+"."+ext)
+        osrf_to_csv_export(data, fileH+"."+ext)
     elif ext == "gml":
-        usufyToGmlExport(data, fileH+"."+ext)
+        osrf_to_gml_export(data, fileH+"."+ext)
     elif ext == "json":
-        usufyToJsonExport(data, fileH+"."+ext)
-    elif ext == "mtz":
-        usufyToMaltegoExport(data, fileH+"."+ext)
+        osrf_to_json_export(data, fileH+"."+ext)
     elif ext == "ods":
-        usufyToOdsExport(data, fileH+"."+ext)
+        osrf_to_ods_export(data, fileH+"."+ext)
     elif ext == "png":
-        usufyToPngExport(data, fileH+"."+ext)
+        osrf_to_png_export(data, fileH+"."+ext)
     elif ext == "txt":
-        usufyToTextExport(data, fileH+"."+ext)
+        osrf_to_text_export(data, fileH+"."+ext)
     elif ext == "xls":
-        usufyToXlsExport(data, fileH+"."+ext)
+        osrf_to_xls_export(data, fileH+"."+ext)
     elif ext == "xlsx":
-        usufyToXlsxExport(data, fileH+"."+ext)
+        osrf_to_xlsx_export(data, fileH+"."+ext)
 
 
-def _generateTabularData(res, oldTabularData = {}, isTerminal=False, canUnicode=True):
+def _generate_tabular_data(res, oldtabular_data={}, is_terminal=False):
     """
     Method that recovers the values and columns from the current structure
 
     This method is used by:
-        - usufyToCsvExport
-        - usufyToOdsExport
-        - usufyToXlsExport
-        - usufyToXlsxExport
+        - osrf_to_csv_export
+        - osrf_to_ods_export
+        - osrf_to_xls_export
+        - osrf_to_xlsx_export
 
     Args:
-    -----
         res: New data to export.
-        oldTabularData: The previous data stored.
+        oldtabular_data: The previous data stored.
         {
           "OSRFramework": [
             [
-              "i3visio.alias",
-              "i3visio.platform",
-              "i3visio.uri"
+              "com.i3visio.Alias",
+              "com.i3visio.Platform",
+              "com.i3visio.URI"
             ],
             [
               "i3visio",
@@ -101,22 +90,18 @@ def _generateTabularData(res, oldTabularData = {}, isTerminal=False, canUnicode=
             ]
           ]
         }
-        isTerminal: If isTerminal is activated, only information related to
-            i3visio.alias, i3visio.platform and i3visio.uri will be displayed
-            in the terminal.
-        canUnicode: Variable that stores if the printed output can deal with
-            Unicode characters.
+        is_terminal: If is_terminal is activated, only information related to
+            relevant utils will be shown.
 
     Returns:
-    --------
         The values, as a dictionary containing all the information stored.
         Values is like:
         {
           "OSRFramework": [
             [
-              "i3visio.alias",
-              "i3visio.platform",
-              "i3visio.uri"
+              "com.i3visio.Alias",
+              "com.i3visio.Platform",
+              "com.i3visio.URI"
             ],
             [
               "i3visio",
@@ -131,312 +116,303 @@ def _generateTabularData(res, oldTabularData = {}, isTerminal=False, canUnicode=
           ]
         }
     """
-    def _grabbingNewHeader(h):
+    def _grabbing_new_header(h):
         """
         Updates the headers to be general.
 
-        Changing the starting @ for a '_' and changing the "i3visio." for
-        "i3visio_". Changed in 0.9.4+.
+        Changing the starting @ for a '_'. Changed in 0.9.4+.
 
         Args:
-        -----
             h: A header to be sanitised.
 
         Returns:
-        --------
             string: The modified header.
         """
         if h[0] == "@":
-            h = h.replace("@","_")
-        elif "i3visio." in h:
-            h = h.replace("i3visio.", "i3visio_")
+            h = h.replace("@", "_")
         return h
 
     # Entities allowed for the output in terminal
-    allowedInTerminal = ["i3visio_alias", "i3visio_uri", "i3visio_platform", "i3visio_email", "i3visio_ipv4", "i3visio_phone", "i3visio_dni", "i3visio_domain", "i3visio_platform_leaked"]
+    allowed_in_terminal = [
+        "com.i3visio.Alias",
+        "com.i3visio.URI",
+        "com.i3visio.Platform",
+        "com.i3visio.Email",
+        "com.i3visio.IPv4",
+        "com.i3visio.Phone",
+        "com.i3visio.DNI",
+        "com.i3visio.Domain",
+        "com.i3visio.Platform.Leaked",
+    ]
+
     # List of profiles found
     values = {}
     headers = ["_id"]
     try:
-        if not isTerminal:
+        if not is_terminal:
             # Recovering the headers in the first line of the old Data
-            headers = oldTabularData["OSRFramework"][0]
+            headers = oldtabular_data["OSRFramework"][0]
         else:
             # Recovering only the printable headers if in Terminal mode
-            oldHeaders = oldTabularData["OSRFramework"][0]
+            old_headers = oldtabular_data["OSRFramework"][0]
             headers = []
-            for h in oldHeaders:
-                if h == "i3visio_domain" or h == "i3visio.domain":
-                    print h
-                h = _grabbingNewHeader(h)
-                if h in allowedInTerminal:
-                    headers.append(h)
-        # Changing the starting @ for a '_' and changing the "i3visio." for "i3visio_". Changed in 0.9.4+
+            for h in old_headers:
+                h = _grabbing_new_header(h)
+                if h in allowed_in_terminal:
+                    # Set to simplify the table shown in mailfy for leaked platforms
+                    if h in ["com.i3visio.Domain", "com.i3visio.Alias"] and "_source" in old_headers:
+                        pass
+                    else:
+                        headers.append(h)
+
         for i, h in enumerate(headers):
-            h = _grabbingNewHeader(h)
-            # Replacing the header
-            headers[i] = h
-    except:
+            if h[0] == "@":
+                h = h.replace("@", "_")
+                # Replacing the header
+                headers[i] = h
+    except Exception:
         # No previous files... Easy...
         headers = ["_id"]
 
-    # We are assuming that we received a list of profiles.
+    # Each result has a list of attributes
     for p in res:
         # Creating the dictionaries
         values[p["value"]] = {}
         attributes = p["attributes"]
-        # Processing all the attributes found
+
+        # Processing all the attributes found in the result object
         for a in attributes:
             # Grabbing the type in the new format
-            h = _grabbingNewHeader(a["type"])
+            h = _grabbing_new_header(a["type"])
 
             # Default behaviour for the output methods
-            if not isTerminal:
-                values[p["value"]][h] = a["value"]
+            if not is_terminal:
                 # Appending the column if not already included
-                if str(h) not in headers:
+                if h not in headers:
                     headers.append(str(h))
+                values[p["value"]][h] = a["value"]
             # Specific table construction for the terminal output
             else:
-                if h in allowedInTerminal:
-                    values[p["value"]][h] = a["value"]
+                if h in allowed_in_terminal:
                     # Appending the column if not already included
                     if str(h) not in headers:
                         headers.append(str(h))
+                    values[p["value"]][h] = a["value"]
 
     data = {}
     # Note that each row should be a list!
-    workingSheet = []
+    working_sheet = []
 
     # Appending the headers
-    workingSheet.append(headers)
+    working_sheet.append(headers)
 
     # First, we will iterate through the previously stored values
     try:
-        for dataRow in oldTabularData["OSRFramework"][1:]:
+        for data_row in oldtabular_data["OSRFramework"][1:]:
             # Recovering the previous data
-            newRow = []
-            for cell in dataRow:
-                newRow.append(cell)
+            new_row = []
+            for cell in data_row:
+                new_row.append(cell)
 
             # Now, we will fill the rest of the cells with "N/A" values
-            for i in range(len(headers)-len(dataRow)):
+            for i in range(len(headers)-len(data_row)):
                 # Printing a Not Applicable value
-                newRow.append("[N/A]")
+                new_row.append("[N/A]")
 
-            # Appending the newRow to the data structure
-            workingSheet.append(newRow)
-    except Exception, e:
+            # Appending the new_row to the data structure
+            working_sheet.append(new_row)
+    except Exception as e:
         # No previous value found!
         pass
 
-    # After having all the previous data stored an updated... We will go through the rest:
+    # After having all the previous data stored and updated... We will go through the rest:
     for prof in values.keys():
-        # Creating an empty structure
-        newRow = []
+        # Creating an empty structure for the new row
+        new_row = []
         for i, col in enumerate(headers):
-            try:
-                if col == "_id":
-                    newRow.append(len(workingSheet))
-                else:
-                    if canUnicode:
-                        newRow.append(unicode(values[prof][col]))
-                    else:
-                        newRow.append(str(values[prof][col]))
-            except UnicodeEncodeError as e:
-                # Printing that an error was found
-                newRow.append("[WARNING: Unicode Encode]")
-            except:
-                # Printing that this is not applicable value
-                newRow.append("[N/A]")
-        # Appending the newRow to the data structure
-        workingSheet.append(newRow)
+            if col == "_id":
+                new_row.append(len(working_sheet))
+            else:
+                try:
+                    new_row.append(values[prof][col])
+                except KeyError:
+                    new_row.append("N/A")
+        # Appending the new_row to the data structure
+        working_sheet.append(new_row)
 
-    # Storing the workingSheet onto the data structure to be stored
-    data.update({"OSRFramework": workingSheet})
+    # Storing the working_sheet onto the data structure to be stored
+    data.update({"OSRFramework": working_sheet})
 
     return data
 
 
-def usufyToJsonExport(d, fPath):
+def osrf_to_json_export(d, file_path):
     """
     Workaround to export to a json file.
 
     Args:
-    -----
         d: Data to export.
-        fPath: File path for the output file.
+        file_path: File path for the output file.
     """
-    oldData = []
+    old_data = []
     try:
-        with open (fPath) as iF:
+        with open (file_path) as iF:
             oldText = iF.read()
             if oldText != "":
-                oldData = json.loads(oldText)
+                old_data = json.loads(oldText)
     except:
         # No file found, so we will create it...
         pass
 
-    jsonText =  json.dumps(oldData+d, indent=2, sort_keys=True)
+    jsonText =  json.dumps(old_data+d, indent=2, sort_keys=True)
 
-    with open (fPath, "w") as oF:
+    with open (file_path, "w") as oF:
         oF.write(jsonText)
 
 
-def usufyToTextExport(d, fPath=None):
+def osrf_to_text_export(data, file_path=None):
     """
     Workaround to export to a .txt file or to show the information.
 
     Args:
-    -----
-        d: Data to export.
-        fPath: File path for the output file. If None was provided, it will
+        data (list): Data to export.
+        file_path: File path for the output file. If None was provided, it will
             assume that it has to print it.
 
     Returns:
-    --------
-        unicode: It sometimes returns a unicode representation of the Sheet
+        str: It sometimes returns a unicode representation of the Sheet
             received.
     """
     # Manual check...
-    if d == []:
+    if len(data) == 0:
         return "+------------------+\n| No data found... |\n+------------------+"
 
     import pyexcel as pe
     import pyexcel.ext.text as text
 
-    if fPath == None:
-        isTerminal = True
-    else:
-        isTerminal = False
-
     try:
-        oldData = get_data(fPath)
-    except:
+        old_data = get_data(file_path)
+    except Exception:
         # No information has been recovered
-        oldData = {"OSRFramework":[]}
+        old_data = {"OSRFramework":[]}
 
     # Generating the new tabular data
-    tabularData = _generateTabularData(d, {"OSRFramework":[[]]}, True, canUnicode=False)
+    tabular_data = _generate_tabular_data(data, {"OSRFramework":[[]]}, is_terminal=True)
 
     # The tabular data contains a dict representing the whole book and we need only the sheet!!
-    sheet = pe.Sheet(tabularData["OSRFramework"])
-    sheet.name = "Profiles recovered (" + getCurrentStrDatetime() +")."
+    sheet = pe.Sheet(tabular_data["OSRFramework"])
+    sheet.name = "Objects recovered (" + getCurrentStrDatetime() +")."
     # Defining the headers
     sheet.name_columns_by_row(0)
     text.TABLEFMT = "grid"
+
     try:
-        with open(fPath, "w") as oF:
-            oF.write(str(sheet))
-    except Exception as e:
-        # If a fPath was not provided... We will only print the info:
-        return unicode(sheet)
+        with open(file_path, "w") as file:
+            file.write(str(sheet))
+    except Exception:
+        # If a file_path was not provided... We will only return the info to be printed:
+        return sheet
 
 
-def usufyToCsvExport(d, fPath):
+def osrf_to_csv_export(data, file_path):
     """
     Workaround to export to a CSV file.
 
     Args:
-    -----
-        d: Data to export.
-        fPath: File path for the output file.
+        data (list): Data to export.
+        file_path: File path for the output file.
     """
-
     from pyexcel_io import get_data
     try:
-        oldData = {"OSRFramework": get_data(fPath) }
+        old_data = {"OSRFramework": get_data(file_path) }
     except:
         # No information has been recovered
-        oldData = {"OSRFramework":[]}
+        old_data = {"OSRFramework":[]}
 
     # Generating the new tabular data.
-    tabularData = _generateTabularData(d, oldData)
+    tabular_data = _generate_tabular_data(data, old_data)
 
     from pyexcel_io import save_data
     # Storing the file
     # NOTE: when working with CSV files it is no longer a dict because it is a one-sheet-format
-    save_data(fPath, tabularData["OSRFramework"])
+    save_data(file_path, tabular_data["OSRFramework"])
 
 
-def usufyToOdsExport(d, fPath):
+def osrf_to_ods_export(data, file_path):
     """
     Workaround to export to a .ods file.
 
     Args:
-    -----
-        d: Data to export.
-        fPath: File path for the output file.
+        data (list): Data to export.
+        file_path: File path for the output file.
     """
     from pyexcel_ods import get_data
     try:
-        #oldData = get_data(fPath)
+        #old_data = get_data(file_path)
         # A change in the API now returns only an array of arrays if there is only one sheet.
-        oldData = {"OSRFramework": get_data(fPath) }
+        old_data = {"OSRFramework": get_data(file_path) }
     except:
         # No information has been recovered
-        oldData = {"OSRFramework":[]}
+        old_data = {"OSRFramework":[]}
 
     # Generating the new tabular data
-    tabularData = _generateTabularData(d, oldData)
+    tabular_data = _generate_tabular_data(data, old_data)
 
     from pyexcel_ods import save_data
     # Storing the file
-    save_data(fPath, tabularData)
+    save_data(file_path, tabular_data)
 
 
-def usufyToXlsExport(d, fPath):
+def osrf_to_xls_export(data, file_path):
     """
     Workaround to export to a .xls file.
 
     Args:
-    -----
-        d: Data to export.
-        fPath: File path for the output file.
+        data (list): Data to export.
+        file_path: File path for the output file.
     """
     from pyexcel_xls import get_data
     try:
-        #oldData = get_data(fPath)
+        #old_data = get_data(file_path)
         # A change in the API now returns only an array of arrays if there is only one sheet.
-        oldData = {"OSRFramework": get_data(fPath) }
+        old_data = {"OSRFramework": get_data(file_path) }
     except:
         # No information has been recovered
-        oldData = {"OSRFramework":[]}
+        old_data = {"OSRFramework":[]}
 
     # Generating the new tabular data
-    tabularData = _generateTabularData(d, oldData)
+    tabular_data = _generate_tabular_data(data, old_data)
     from pyexcel_xls import save_data
     # Storing the file
-    save_data(fPath, tabularData)
+    save_data(file_path, tabular_data)
 
 
-def usufyToXlsxExport(d, fPath):
+def osrf_to_xlsx_export(data, file_path):
     """
     Workaround to export to a .xlsx file.
 
     Args:
-    -----
-        d: Data to export.
-        fPath: File path for the output file.
+        data (list): Data to export.
+        file_path: File path for the output file.
     """
     from pyexcel_xlsx import get_data
     try:
-        #oldData = get_data(fPath)
+        #old_data = get_data(file_path)
         # A change in the API now returns only an array of arrays if there is only one sheet.
-        oldData = {"OSRFramework": get_data(fPath) }
+        old_data = {"OSRFramework": get_data(file_path) }
     except:
         # No information has been recovered
-        oldData = {"OSRFramework":[]}
+        old_data = {"OSRFramework":[]}
 
     # Generating the new tabular data
-    tabularData = _generateTabularData(d, oldData)
+    tabular_data = _generate_tabular_data(data, old_data)
 
     from pyexcel_xlsx import save_data
     # Storing the file
-    save_data(fPath, tabularData)
+    save_data(file_path, tabular_data)
 
 
-def _generateGraphData(data, oldData=nx.Graph()):
+def _generate_graph_data(data, old_data=nx.Graph()):
     """
     Processing the data from i3visio structures to generate nodes and edges
 
@@ -445,59 +421,45 @@ def _generateGraphData(data, oldData=nx.Graph()):
     all the attribute starting with "@".
 
     Args:
-    -----
         d: The i3visio structures containing a list of
-        oldData: A graph structure representing the previous information.
+        old_data: A graph structure representing the previous information.
 
     Returns:
-    --------
         A graph structure representing the updated information.
     """
     def _addNewNode(ent, g):
         """
+        Wraps the creation of a node
+
+        Args:
             ent:   The hi3visio-like entities to be used as the identifier.
                 ent = {
                     "value":"i3visio",
-                    "type":"i3visio.alias,
+                    "type":"com.i3visio.Alias,
                 }
             g:   The graph in which the entity will be stored.
-            :return:    newAtts, newEntties
+
+        Returns:
+            The label used to represent this element.
         """
-        # Serialized entity
-        serEnt = json.dumps(ent)
-
-        # Calculating the hash
-        h = hashlib.new('md5')
-        h.update(serEnt)
-        hashLabel = h.hexdigest()
-
-        # Adding the node
-        g.add_node(hashLabel)
-
-        # Creating the main attributes such as the type and value
-        g.node[hashLabel]["type"] = ent["type"]
         try:
-            g.node[hashLabel]["value"] = unicode(ent["value"])
+            label = unicode(ent["value"])
         except UnicodeEncodeError as e:
             # Printing that an error was found
-            g.node[hashLabel]["value"] = "[WARNING: Unicode Encode]"
-        except:
-            # Printing that this is not applicable value
-            g.node[hashLabel]["value"] = "[N/A]"
-
-        return hashLabel
+            label = str(ent["value"])
+        g.add_node(label)
+        g.node[label]["type"] = ent["type"]
+        return label
 
     def _processAttributes(elems, g):
         """
         Function that processes a list of elements to obtain new attributes.
 
         Args:
-        -----
-            elems: List of i3visio-like entities.
+            elems (list): List of i3visio-like entities.
             g: The graph in which the entity will be stored.
 
         Returns:
-        --------
             newAtts: Dict of attributes (to be stored as attributes for the
                 given entity).
             newEntities: List of new Entities (to be stored as attributes for
@@ -515,11 +477,11 @@ def _generateGraphData(data, oldData=nx.Graph()):
                     newAtts[attName] = int(att["value"])
                 except:
                     newAtts[attName] = att["value"]
-            elif att["type"][:8] == "i3visio.":
+            elif att["type"][:12] == "i3visio.":
                 # Creating a dict to represent the pair: type, value entity.
                 ent = {
-                    "value":att["value"],
-                    "type":att["type"].replace("i3visio.", "i3visio_"),
+                    "value": att["value"],
+                    "type": att["type"],
                 }
                 # Appending the new Entity to the entity list
                 newEntities.append(ent)
@@ -550,7 +512,7 @@ def _generateGraphData(data, oldData=nx.Graph()):
 
         return newAtts, newEntities
 
-    graphData = oldData
+    graphData = old_data
     # Iterating through the results
     for elem in data:
         # Creating a dict to represent the pair: type, value entity.
@@ -560,26 +522,27 @@ def _generateGraphData(data, oldData=nx.Graph()):
         }
 
         # Appending the new node
-        hashLabel = _addNewNode(ent, graphData)
+        new_node = _addNewNode(ent, graphData)
 
         # Processing the attributes to grab the attributes (starting with "@..." and entities)
         newAtts, newEntities = _processAttributes(elem["attributes"], graphData)
 
         # Updating the attributes to the current entity
-        graphData.node[hashLabel].update(newAtts)
+        graphData.node[new_node].update(newAtts)
 
         # Creating the edges (the new entities have also been created in the _processAttributes
-        for new in newEntities:
+        for other_node in newEntities:
             # Serializing the second entity
-            serEnt = json.dumps(new)
+            serEnt = json.dumps(new_node)
 
-            # Calculating the hash of the second entity
-            h = hashlib.new('md5')
-            h.update(serEnt)
-            hashLabelSeconds = h.hexdigest()
+            try:
+                other_node = unicode(other_node["value"])
+            except UnicodeEncodeError as e:
+                # Printing that an error was found
+                other_node = str(other_node["value"])
 
             # Adding the edge
-            graphData.add_edge(hashLabel, hashLabelSeconds)
+            graphData.add_edge(new_node, other_node)
             try:
                 # Here, we would add the properties of the edge
                 #graphData.edge[hashLabel][hashLabelSeconds]["times_seen"] +=1
@@ -592,185 +555,63 @@ def _generateGraphData(data, oldData=nx.Graph()):
     return graphData
 
 
-def usufyToGmlExport(d, fPath):
-    """
-    Workaround to export data to a .gml file.
+def osrf_to_gml_export(d, file_path):
+    """Workaround to export data to a .gml file.
 
     Args:
-    -----
         d: Data to export.
-        fPath: File path for the output file.
+        file_path (str): File path for the output file.
     """
     # Reading the previous gml file
     try:
-        oldData=nx.read_gml(fPath)
+        old_data = nx.read_gml(file_path)
     except UnicodeDecodeError as e:
-        print "UnicodeDecodeError:\t" + str(e)
-        print "Something went wrong when reading the .gml file relating to the decoding of UNICODE."
+        print("UnicodeDecodeError:\t" + str(e))
+        print("Something went wrong when reading the .gml file relating to the decoding of UNICODE.")
         import time as time
-        fPath+="_" +str(time.time())
-        print "To avoid losing data, the output file will be renamed to use the timestamp as:\n" + fPath + "_" + str(time.time())
-        print
+        file_path += "_" + str(time.time())
+        print("To avoid losing data, the output file will be renamed to use the timestamp as:\n" + file_path + "_" + str(time.time()))
+        print()
         # No information has been recovered
-        oldData = nx.Graph()
+        old_data = nx.Graph()
     except Exception as e:
         # No information has been recovered
-        oldData = nx.Graph()
+        old_data = nx.Graph()
 
-    newGraph = _generateGraphData(d, oldData)
+    newGraph = _generate_graph_data(d, old_data)
 
     # Writing the gml file
-    nx.write_gml(newGraph,fPath)
+    nx.write_gml(newGraph,file_path)
 
 
-def usufyToPngExport(d, fPath):
-    """
-    Workaround to export to a png file.
+def osrf_to_png_export(d, file_path):
+    """Workaround to export to a png file.
 
     Args:
-    -----
         d: Data to export.
-        fPath: File path for the output file.
+        file_path: File path for the output file.
     """
-    newGraph = _generateGraphData(d)
+    newGraph = _generate_graph_data(d)
 
     import matplotlib.pyplot as plt
     # Writing the png file
     nx.draw(newGraph)
-    plt.savefig(fPath)
-
-
-def usufyToMaltegoExport(profiles, fPath):
-    """
-    Workaround to export to a Maltego file.
-
-    Args:
-    -----
-        d: Data to export.
-        fPath: File path for the output file.
-    """
-    me = MaltegoTransform()
-    # A dictionary with the structure:
-
-    newEntities = []
-    for profile in profiles:
-	    # Defining the main entity
-        """aux ={}
-        aux["type"] = "i3visio.profile"
-        aux["value"] =  "Skype - " + str(user["i3visio.alias"])
-        aux["attributes"] = []
-
-        # Creation of a temp entity
-        aux = {}
-        aux["type"] = profile["value"]
-        aux["value"] = profile["type"]
-        aux["attributes"] = []"""
-        newEntities.append(profile)
-
-    me.addListOfEntities(newEntities)
-
-    # Storing the file
-    with open (fPath, "w") as oF:
-        oF.write(me.getOutput())
-
-
-def listToMaltego(profiles):
-    """
-    Method to generate the text to be appended to a Maltego file.
-
-    May need to be revisited.
-
-    Args:
-    -----
-        profiles: A list of dictionaries with the information of the profiles
-            in the following format: `{"a_nick": [<list_of_results>]}`. An
-            example is shown below:
-            ```
-            [
-                {
-                  "attributes": [
-                    {
-                      "attributes": [],
-                      "type": "i3visio.uri",
-                      "value": "http://twitter.com/i3visio"
-                    },
-                    {
-                      "attributes": [],
-                      "type": "i3visio.alias",
-                      "value": "i3visio"
-                    },
-                    {
-                      "attributes": [],
-                      "type": "i3visio.platform",
-                      "value": "Twitter"
-                    }
-                  ],
-                  "type": "i3visio.profile",
-                  "value": "Twitter - i3visio"
-                }
-                ,
-                ...
-            ]
-            ```
-
-    Returns:
-    --------
-        string: The .xml text to be written for a Maltego file.
-    """
-    logger = logging.getLogger("osrframework.utils")
-    logger.info( "Generating Maltego File...")
-
-    maltegoText = ""
-    logger.debug("Going through all the keys in the dictionary...")
-    me = MaltegoTransform()
-    # A dictionary with the structure:
-
-    newEntities = []
-    for profile in profiles:
-	    # Defining the main entity
-        """aux ={}
-        aux["type"] = "i3visio.profile"
-        aux["value"] =  "Skype - " + str(user["i3visio.alias"])
-        aux["attributes"] = []
-
-        # Creation of a temp entity
-        aux = {}
-        aux["type"] = profile["value"]
-        aux["value"] = profile["type"]
-        aux["attributes"] = []"""
-        newEntities.append(profile)
-
-    me.addListOfEntities(newEntities)
-
-    # Getting the output text
-    me.addUIMessage("Process completed!")
-    if len(newEntities)<=11:
-        me.addUIMessage("All the entities have been displayed!")
-    else:
-        me.addUIMessage("Ooops! Too many entities to display!")
-        me.addUIMessage("The following entities could not be added because of the limits in Maltego Community Edition:\n"+json.dumps(newEntities, indent=2))
-
-    # Returning the output text...
-    me.returnOutput()
-    return me.getOutput()
+    plt.savefig(file_path)
 
 
 def fileToMD5(filename, block_size=256*128, binary=False):
-    """
-    A function that calculates the MD5 hash of a file.
+    """A function that calculates the MD5 hash of a file.
 
     Args:
-    -----
-        filename: Path to the file.
-        block_size: Chunks of suitable size. Block size directly depends on
+        filename (str): Path to the file.
+        block_size (int): Chunks of suitable size. Block size directly depends on
             the block size of your filesystem to avoid performances issues.
             Blocks of 4096 octets (Default NTFS).
-        binary: A boolean representing whether the returned info is in binary
+        binary (bool): A boolean representing whether the returned info is in binary
             format or not.
 
     Returns:
-    --------
-        string: The  MD5 hash of the file.
+        str: The  MD5 hash of the file.
     """
     md5 = hashlib.md5()
     with open(filename,'rb') as f:
@@ -782,12 +623,10 @@ def fileToMD5(filename, block_size=256*128, binary=False):
 
 
 def getCurrentStrDatetime():
-    """
-    Generating the current Datetime with a given format
+    """Generating the current Datetime with a given format
 
     Returns:
-    --------
-        string: The string of a date.
+        str: The string of a date.
     """
     # Generating current time
     i = datetime.datetime.now()
@@ -800,11 +639,9 @@ def getFilesFromAFolder(path):
     Getting all the files in a folder.
 
     Args:
-    -----
-        path: The path in which looking for the files
+        path (str): The path in which looking for the files
 
     Returns:
-    --------
         list: The list of filenames found.
     """
     from os import listdir
@@ -818,8 +655,7 @@ def getFilesFromAFolder(path):
 
 
 def urisToBrowser(uris=[], autoraise=True):
-    """
-    Method that launches the URI in the default browser of the system
+    """Method that launches the URI in the default browser of the system
 
     This function temporally deactivates the standard ouptut and errors to
     prevent the system to show unwanted messages. This method is based on this
@@ -827,8 +663,7 @@ def urisToBrowser(uris=[], autoraise=True):
     https://stackoverflow.com/questions/2323080/how-can-i-disable-the-webbrowser-message-in-python
 
     Args:
-    -----
-        uri: a list of strings representing the URI to be opened in the browser.
+        uri (str): a list of strings representing the URI to be opened in the browser.
     """
 
     # Cloning stdout (1) and stderr (2)
@@ -853,13 +688,11 @@ def urisToBrowser(uris=[], autoraise=True):
         os.dup2(savout2, 2)
 
 
-def openResultsInBrowser(res):
-    """
-    Method that collects the URI from a list of entities and opens them
+def open_results_in_browser(res):
+    """Method that collects the URI from a list of entities and opens them
 
     Args:
-    -----
-        res: A list containing several i3visio entities.
+        res (list): A list containing several i3visio entities.
     """
     print(emphasis("\n\tOpening URIs in the default web browser..."))
 
@@ -870,72 +703,117 @@ def openResultsInBrowser(res):
     uris = []
     for r in res:
         for att in r["attributes"]:
-            if att["type"] == "i3visio.uri":
+            if att["type"] == "com.i3visio.URI":
                 uris.append(att["value"])
 
     urisToBrowser(uris)
 
 
 def colorize(text, messageType=None):
-    """
-    Function that colorizes a message.
+    """Function that colorizes a message.
 
     Args:
-    -----
-        text: The string to be colorized.
-        messageType: Possible options include "ERROR", "WARNING", "SUCCESS",
+        text (str): The string to be colorized. If not a string, it is converted.
+        messageType (str): Possible options include "ERROR", "WARNING", "SUCCESS",
             "INFO" or "BOLD".
 
     Returns:
-    --------
         string: Colorized if the option is correct, including a tag at the end
             to reset the formatting.
     """
-    formattedText = text
+    formatted_text = str(text)
+
     # Set colors
     if "ERROR" in messageType:
-        formattedText = colorama.Fore.RED + formattedText
+        formatted_text = colorama.Fore.RED + formatted_text
     elif "WARNING" in messageType:
-        formattedText = colorama.Fore.YELLOW + formattedText
+        formatted_text = colorama.Fore.YELLOW + formatted_text
     elif "SUCCESS" in messageType:
-        formattedText = colorama.Fore.GREEN + formattedText
+        formatted_text = colorama.Fore.GREEN + formatted_text
     elif "INFO" in messageType:
-        formattedText = colorama.Fore.BLUE + formattedText
+        formatted_text = colorama.Fore.BLUE + formatted_text
 
     # Set emphashis mode
     if "BOLD" in messageType:
-        formattedText = colorama.Style.BRIGHT + formattedText
+        formatted_text = colorama.Style.BRIGHT + formatted_text
 
-    return formattedText + colorama.Style.RESET_ALL
+    return formatted_text + colorama.Style.RESET_ALL
 
 
 def error(text):
+    """Bolds the given text and uses a red font
+
+    Args:
+        text (str): Object to be colorized.
+
+    Returns:
+        str. Colorized text.
+    """
     return colorize(text, ["ERROR", "BOLD"])
 
 
 def warning(text):
+    """Uses an orange font
+
+    Args:
+        text (str): Object to be colorized.
+
+    Returns:
+        str. Colorized text.
+    """
     return colorize(text, ["WARNING"])
 
 
 def success(text):
+    """Bolds the given text and uses a green font
+
+    Args:
+        text (str): Object to be colorized.
+
+    Returns:
+        str. Colorized text.
+    """
     return colorize(text, ["SUCCESS", "BOLD"])
 
 
 def info(text):
+    """Uses a blue font
+
+    Args:
+        text (str): Object to be colorized.
+
+    Returns:
+        str. Colorized text.
+    """
     return colorize(text, ["INFO"])
 
 
 def title(text):
+    """Bolds the given text and uses a blue flont
+
+    Args:
+        text (str): Object to be colorized.
+
+    Returns:
+        str. Colorized text.
+    """
     return colorize(text, ["INFO", "BOLD"])
 
 
 def emphasis(text):
+    """Bolds the given text
+
+    Args:
+        text (str): Object to be colorized.
+
+    Returns:
+        str. Colorized text.
+    """
     return colorize(text, ["BOLD"])
 
 
 def showLicense():
-    """
-    Method that prints the license if requested.
+    """Method that prints the license if requested.
 
     It tries to find the license online and manually download it. This method
     only prints its contents in plain text.
@@ -949,3 +827,34 @@ def showLicense():
         print(text)
     except:
         print(warning("The license could not be downloaded and printed."))
+
+
+
+def expand_entities_from_email(e):
+    """Method that receives an email an creates linked entities
+
+    Args:
+        e (str): Email to verify.
+
+    Returns:
+        Three different values: email, alias and domain in a list.
+    """
+    # Grabbing the email
+    email = {}
+    email["type"] = "com.i3visio.Email"
+    email["value"] = e
+    email["attributes"] = []
+
+    # Grabbing the alias
+    alias = {}
+    alias["type"] = "com.i3visio.Alias"
+    alias["value"] = e.split("@")[0]
+    alias["attributes"] = []
+
+    # Grabbing the domain
+    domain= {}
+    domain["type"] = "com.i3visio.Domain"
+    domain["value"] = e.split("@")[1]
+    domain["attributes"] = []
+
+    return [email, alias, domain]

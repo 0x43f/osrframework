@@ -3,6 +3,84 @@ OSRFramework Changelog
 
 For more information, check the README.Add some wrappers
 
+0.19.0, 2018/11/23 -- Simplified wrapper systems
+- Add version 2 of wrappers
+- Provide support for both version of wrappers
+- Add verification of email registration in online platforms
+- Improve welcome banner
+- Add fortunes with tips and tricks
+- Fix several wrappers and false positives
+- Remove nonworking usufy wrappers: streakgaming, cardinghispano, ehow, realcarders, looki
+- Improve documentation
+
+0.18.8, 2018/07/13 -- Checkfy release
+- Add checkfy as a tool to find emails matching a pattern
+- Fix HIBP queries to deal with Cloudflare restrictions
+- Remove Hesidohackeado wrappers due to a change in their service policy
+- Add Unsplash usufy wrapper
+- Add Telegram usufy wrapper
+- Add Whattpad usufy wrapper
+- Add KhanAcademy usufy wrapper
+- Add Telegram usufy wrapper
+- Move to pending non working wrappers like cafemom, break or blackyard
+- Add additional information to Searchfy
+- Fix tags for imagery usufy wrappers
+- Capture KeyboardInterruptions in alias_generator
+- Fix formatting in mailfy.py
+- Force usage of emailahoy en Windows systems too
+- Fix OpenBugBounty wrapper
+
+0.18.7, 2018/05/30 -- Post GDPR update
+- Add Fotolog new usufy wrapper
+- Patch Buzznet usufy wrapper to fix positives when accessing from some locations
+- Remove Klout wrapper (the service has been closed)
+
+0.18.6, 2018/05/21 -- Hotfix to remove a printing debug
+- Hotfix to remove an unneeded print line
+
+0.18.5, 2018/05/20 -- New release of May
+- Add Instagram to searchfy
+- Add xtelefonos.es phonefy wrapper
+- Remove Linkedin usufy wrapper (moved to pending until we add the API).
+- Remove Tumblr usufy wrapper (moved to pending until we add the API).
+- Remove foodspotting wrapper.
+
+0.18.4, 2018/04/19 -- Release some fixes for broken wrappers
+- Fix of houzz.com wrapper
+- Fix of foros24h wrapper
+- Fix photobucket usufy wrapper
+- Fix break.com usufy wrapper
+- Fix minor issues in utils/browser.py
+
+0.18.3, 2018/03/10 -- Stability version
+- Add #293: add hacked email search
+- Fix #312: Update cardinghispano usufy wrapper
+- Fix #311: Set --is_leaked option as default for mailfy
+- Fix several false positives in domainfy resolution
+- Remove tuporno and genspot wrappers
+
+0.18.2, 2018/02/11 -- Add OSRFramework CLI.
+- Add feature: Add OSRFramework CLI with subcommands to invoke its utils
+- Fix #310: The houzz.es platform is no working properly
+- Fix #209: Remove Kiwi.qa wrapper
+- Patch issue: Sourceforge moved to pending as it does not work
+- Patch issue: Remove netlog wrapper after the website rebrand to twoo.com    
+
+0.18.1, 2018/02/04 -- Fix several issues.
+- Fix #305: Peerbackers wrapper takes to long to be resolve, delaying the answer
+- Fix #304: Multiple erros in entify.py
+- Fix #302: alias_generator fails with main
+- Fix #263: Problem with searchfy on facebook
+
+0.18.0, 2018/01/21 -- Major updates to separate server, maltego and console package
+- Add feature #294: Add freemusicarchive.org usufy wrapper
+- Add feature: Update osrframework to match the new entry_points-friendly structure
+- Add feature: Update the way of launching the command removing the extension from the applications
+- Separate osrframework_server, osrframework_maltego and osrframework_console from the core wrapper
+- Patch issue #300: Remove Skype features
+- Fix some issues with non-working wrappers
+- Remove any reference to Maltego code generation
+
 0.17.4, 2017/11/04 -- Some new additions and fixes
 - Fix issue #295: addressed the error found when exiting osrfconsole.py
 - Fix issue in gsmspain usufy wrapper
@@ -28,8 +106,8 @@ For more information, check the README.Add some wrappers
 - Move to pending Oroom and Backyardchickens
 
 0.17.1, 2017/08/20 -- Some fixes and new wrappers.
-- Add feature #283: Add Kiwi usufy wrapper
 - Add feature #284: Add Sarahah usufy wrapper
+- Add feature #283: Add Kiwi usufy wrapper
 - Fix issue #286: Remove intersect.es wrapper as the platform has been changed
 - Fix issue #282: Fix openstreetmap usufy wrapper when using usernames containing a dot
 - Fix issue #280: Fix serieadictos usufy wrapper
